@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Éjszakai zsebes</title>
+<style>
+:root{--bg:#12151d;--panel:#1c2130;--text:#ecebe4;--amber:#f2a93b;--bad:#e5484d;--ok:#4cc38a;color-scheme:dark;box-sizing:border-box}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:"Bahnschrift","Segoe UI",system-ui,sans-serif;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+#menu{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(10,12,18,.88);padding:12px;overflow-y:auto;overscroll-behavior:contain}
+#menu.hidden{display:none}
+.panel{background:var(--panel);border:2px solid var(--amber);padding:24px 28px;width:min(92vw,380px);max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+h1{margin:0 0 4px;font-size:28px;letter-spacing:.5px;color:var(--amber)}
+p.sub{margin:0 0 8px;font-size:14px;opacity:.8;line-height:1.4}
+button,select{font:inherit;padding:10px 12px;min-height:44px;background:#262c3f;color:var(--text);border:1px solid #3a4260;cursor:pointer;touch-action:manipulation}
+button{position:relative;z-index:1;pointer-events:auto}
+button:hover,button:focus-visible,select:focus-visible{outline:2px solid var(--amber)}
+#infoGui{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(4,6,12,.82)}
+#infoGui.open{display:flex}
+#infoCard{width:min(94vw,560px);max-height:90dvh;overflow:auto;background:#1c2130;border:2px solid var(--amber);box-shadow:0 16px 60px #000b;padding:20px;display:flex;flex-direction:column;gap:12px}
+#infoCard h2{margin:0;color:var(--amber);font-size:24px}
+#infoGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.infoCell{background:#111622;border:1px solid #343c52;padding:10px;border-radius:8px;min-width:0}
+.infoLabel{font-size:11px;color:#aeb6c8;text-transform:uppercase;letter-spacing:.5px}
+.infoValue{font-size:18px;font-weight:700;margin-top:4px;overflow-wrap:anywhere}
+#infoObjective{background:#30291d;border-left:3px solid var(--amber);padding:11px;line-height:1.45}
+#infoHelp{font-size:13px;line-height:1.55;color:#c7ccda}
+#infoActions{display:flex;gap:8px;flex-wrap:wrap}
+#infoActions button{flex:1;min-width:130px}#actionTask{background:#30291d;border-left:3px solid var(--amber);padding:12px;line-height:1.5;font-size:15px}
+#actionSequence{font-size:30px;font-weight:800;letter-spacing:5px;text-align:center;color:#ffd166;padding:8px}
+#actionStatus{font-size:14px;line-height:1.5;text-align:center;color:#d9deea}
+#actionControls{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+#actionControls button{min-width:52px;min-height:48px;font-size:18px;font-weight:800}
+#timingTrack{height:24px;background:#3b4050;border-radius:6px;position:relative;overflow:hidden;margin:8px 0}
+#timingZone{position:absolute;top:0;bottom:0;background:#36b879}
+#timingNeedle{position:absolute;top:-3px;bottom:-3px;width:5px;background:#ffbd4a;box-shadow:0 0 5px #000}
+#infoCard{width:min(94vw,520px)}
+@media(max-width:420px){#infoCard{padding:14px;gap:9px}#actionSequence{font-size:26px}}
+
+@media(max-width:420px){#infoCard{padding:14px}#infoGrid{gap:6px}.infoValue{font-size:16px}}
+pre{font-size:12px;white-space:pre-wrap;margin:0}
+#touch{position:fixed;inset:0;z-index:10;pointer-events:none}
+#touch.hidden{display:none}
+#stick{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:140px;height:140px;border-radius:50%;background:#ffffff18;border:2px solid #ffffff44;pointer-events:auto;touch-action:none;user-select:none}
+#knob{position:absolute;left:50px;top:50px;width:40px;height:40px;border-radius:50%;background:var(--amber);pointer-events:none}
+#btns{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,54px);gap:7px;pointer-events:auto}
+#btns button{width:54px;height:54px;border-radius:16px;font-weight:700;font-size:12px;padding:4px;touch-action:manipulation;user-select:none}.theft-only.hidden{display:none}
+@media(max-width:600px){#stick{width:104px;height:104px;left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px))}#knob{left:35px;top:35px;width:30px;height:30px}#btns{grid-template-columns:repeat(3,44px);gap:5px;right:calc(10px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px))}#btns button{width:44px;height:44px;border-radius:12px;font-size:11px} .panel{padding:18px 16px}}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="menu"><div class="panel">
+<h1>Éjszakai zsebes</h1>
+<p class="sub" id="menuMsg">Teljesítsd a napi kvótát, és ne hagyd, hogy túl sokan lássanak. WASD / nyilak mozgás, Shift futás, E akció. Lopáskor kövesd a nyilak sorrendjét, majd időzíts! M térkép, Esc menü.</p>
+<button id="bResume">Folytatás</button>
+<button id="bNew">Új játék</button>
+<button id="bSave">Mentés</button>
+<button id="bLoad">Betöltés</button>
+<label class="sub">Irányítás <select id="ctrl"><option value="keyboard">Billentyűzet</option><option value="touch">Telefon (érintés)</option></select></label>
+<label class="sub">Karakter bőrszíne <select id="skin"><option value="0">Sötétbarna</option><option value="1" selected>Barna</option><option value="2">Világosbarna</option><option value="3">Világos</option></select></label>
+<pre id="testOut"></pre>
+</div></div>
+<div id="infoGui" aria-hidden="true"><div id="infoCard" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+<h2 id="infoTitle">JÁTÉKAKCIÓ</h2>
+<div id="infoGrid">
+<div class="infoCell"><div class="infoLabel">Nap / idő</div><div class="infoValue" id="infoDay">—</div></div>
+<div class="infoCell"><div class="infoLabel">Pénz / mai zsákmány</div><div class="infoValue" id="infoMoney">—</div></div>
+<div class="infoCell"><div class="infoLabel">Napi kvóta</div><div class="infoValue" id="infoQuota">—</div></div>
+<div class="infoCell"><div class="infoLabel">Rendőri figyelem</div><div class="infoValue" id="infoHeat">—</div></div>
+<div class="infoCell"><div class="infoLabel">Helyszín</div><div class="infoValue" id="infoPlace">—</div></div>
+<div class="infoCell"><div class="infoLabel">Közeli célpont</div><div class="infoValue" id="infoTarget">—</div></div>
+</div>
+<div id="actionTask">Közelíts egy célponthoz, majd nyomd meg az E gombot.</div>
+<div id="actionSequence"></div>
+<div id="actionStatus"></div>
+<div id="actionControls"></div>
+<div id="infoActions"><button id="infoClose">Bezárás</button></div>
+</div></div>
+<div id="touch" class="hidden"><div id="stick"><div id="knob"></div></div><div id="btns"><button class="theft-only hidden" data-k="arrowup">↑</button><button class="theft-only hidden" data-k="arrowleft">←</button><button class="theft-only hidden" data-k="arrowright">→</button><button class="theft-only hidden" data-k="arrowdown">↓</button><button data-k="e">E</button><button data-k=" ">Akció</button><button data-k="m">Térkép</button><button data-k="Escape">Menü</button></div></div>
+<script>
+"use strict";
+/* ---------- Konstansok ---------- */
+const WORLD={w:2400,h:1800}, HOUR_SECONDS=7.5, NIGHT_FROM=20, NIGHT_TO=6, MAX_DAYS=10;
+const BIG_THEFT_THRESHOLD=80, WITNESS_LIMIT=2, WITNESS_RADIUS=170, SAVE_KEY="ejszakai-zsebes-v1";
+const SKINS=["#3b2417","#6b4226","#c68642","#f1c27d"], SPAWN={x:1200,y:900};
+const ROAD_W=120, H_ROADS=[300,900,1500], V_ROADS=[400,1200,2000];
+const CELLS_X=[[0,340],[460,1140],[1260,1940],[2060,2400]], CELLS_Y=[[0,240],[360,840],[960,1440],[1560,1800]];
+const ITEM_TYPES=[{n:"TV",e:"📺",v:140},{n:"Laptop",e:"💻",v:110},{n:"Ékszer",e:"💍",v:90},{n:"Készpénz",e:"💵",v:60},{n:"Konzol",e:"🎮",v:80}];
+const ROOM={w:640,h:380};
+
+/* ---------- Tiszta logika (tesztelhető) ---------- */
+const isNight=h=>h>=NIGHT_FROM||h<NIGHT_TO;
+const quotaForDay=d=>150+60*(d-1);
+const inZone=(pos,start,width)=>pos>=start&&pos<=start+width;
+function isFacing(observer,target,fov=2){
+  const angle=Math.atan2(target.y-observer.y,target.x-observer.x);
+  let diff=Math.abs(angle-observer.dir)%(2*Math.PI); if(diff>Math.PI)diff=2*Math.PI-diff;
+  return diff<=fov/2;
+}
+function countWitnesses(people,thief,victim,radius=WITNESS_RADIUS){
+  return people.filter(p=>p!==victim&&Math.hypot(p.x-thief.x,p.y-thief.y)<radius&&(p.alert>0||isFacing(p,thief))).length;
+}
+function policeDelta(witnesses,amount){
+  if(witnesses>WITNESS_LIMIT&&amount>=BIG_THEFT_THRESHOLD)return 35;
+  return witnesses>0?6:0;
+}
+function mulberry32(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function runTests(){
+  const out=[],eq=(name,a,b)=>out.push((a===b?"OK   ":"HIBA ")+name+(a===b?"":` (várt ${b}, kapott ${a})`));
+  const thief={x:0,y:0}, victim={x:5,y:0,dir:0,alert:0};
+  const watcher=x=>({x,y:0,dir:Math.PI,alert:0});
+  eq("3 néző + áldozat kizárva",countWitnesses([victim,watcher(50),watcher(60),watcher(70)],thief,victim),3);
+  eq("távoli néző nem számít",countWitnesses([watcher(500)],thief,null),0);
+  eq("elfordult néző nem számít",countWitnesses([{x:50,y:0,dir:0,alert:0}],thief,null),0);
+  eq("nagy lopás 3 tanúval",policeDelta(3,100),35);
+  eq("nagy lopás 2 tanúval",policeDelta(2,100),6);
+  eq("kis lopás 3 tanúval",policeDelta(3,50),6);
+  eq("nincs tanú",policeDelta(0,500),0);
+  eq("zónában",inZone(.5,.45,.1),true); eq("zónán kívül",inZone(.6,.45,.1),false);
+  eq("éjszaka 21",isNight(21),true); eq("nappal 12",isNight(12),false); eq("hajnal 5",isNight(5),true);
+  eq("kvóta 1. nap",quotaForDay(1),150); eq("kvóta 2. nap",quotaForDay(2),210);
+  return out.join("\n");
+}
+
+/* ---------- Világ ---------- */
+const canvas=document.getElementById("c"), ctx=canvas.getContext("2d",{alpha:false});
+let VIEW_W=innerWidth,VIEW_H=innerHeight,PIXEL_RATIO=1;
+const resize=()=>{VIEW_W=innerWidth;VIEW_H=innerHeight;PIXEL_RATIO=Math.min(window.devicePixelRatio||1,1.5);canvas.width=Math.round(VIEW_W*PIXEL_RATIO);canvas.height=Math.round(VIEW_H*PIXEL_RATIO);ctx.setTransform(PIXEL_RATIO,0,0,PIXEL_RATIO,0,0)};
+addEventListener("resize",resize,{passive:true}); resize();
+const world={houses:[],trees:[],signs:[],npcs:[],dogs:[],cars:[]};
+const rand=(a,b)=>a+Math.random()*(b-a);
+const onRoad=(x,y)=>H_ROADS.some(r=>Math.abs(y-r)<ROAD_W/2)||V_ROADS.some(r=>Math.abs(x-r)<ROAD_W/2);
+function buildWorld(){
+  const rng=mulberry32(7); let id=0;
+  for(const [y1,y2] of CELLS_Y)for(const [x1,x2] of CELLS_X){
+    const rows=[]; if(y2-y1>=200)rows.push(y1+20); if(y2-y1>=400)rows.push(y2-130);
+    for(const rowY of rows)for(let x=x1+25;x+140<=x2-10;x+=190)
+      world.houses.push({id:id++,x,y:rowY,w:140,h:110,hue:Math.floor(rng()*360),door:{x:x+70,y:rowY+120}});
+  }
+  for(let i=0;i<150;i++){
+    const x=rng()*WORLD.w,y=rng()*WORLD.h;
+    if(onRoad(x,y)||world.houses.some(h=>x>h.x-30&&x<h.x+h.w+30&&y>h.y-30&&y<h.y+h.h+40))continue;
+    world.trees.push({x,y,r:12+rng()*6});
+  }
+  for(const cy of H_ROADS)for(const cx of V_ROADS)for(const [sx,sy] of [[-80,-80],[80,80]])world.signs.push({x:cx+sx,y:cy+sy});
+  for(let i=0;i<45;i++)world.npcs.push(makeWalker(130+Math.floor(Math.random()*5)*60,true));
+  for(let i=0;i<9;i++)world.dogs.push(makeWalker(0,false));
+  for(const cy of H_ROADS)for(let i=0;i<3;i++)world.cars.push({axis:"h",x:rand(0,WORLD.w),y:cy+(i%2?24:-24),dir:i%2?-1:1,speed:rand(80,130),hue:Math.floor(rand(0,360))});
+  for(const cx of V_ROADS)for(let i=0;i<2;i++)world.cars.push({axis:"v",x:cx+(i%2?24:-24),y:rand(0,WORLD.h),dir:i%2?-1:1,speed:rand(80,130),hue:Math.floor(rand(0,360))});
+}
+function makeWalker(cashSeed,isPerson){
+  let x,y; do{x=rand(30,WORLD.w-30);y=rand(30,WORLD.h-30)}while(blockedAt(x,y,8));
+  return {x,y,tx:x,ty:y,dir:rand(0,6.28),speed:isPerson?rand(30,55):rand(50,80),cash:isPerson?Math.floor(rand(30,cashSeed)):0,alert:0,hue:Math.floor(rand(0,360)),wait:0};
+}
+function blockedAt(x,y,r){
+  if(x<r||y<r||x>WORLD.w-r||y>WORLD.h-r)return true;
+  for(const h of world.houses)if(x>h.x-r&&x<h.x+h.w+r&&y>h.y-r&&y<h.y+h.h+r)return true;
+  for(const t of world.trees)if(Math.hypot(x-t.x,y-t.y)<t.r+r)return true;
+  return false;
+}
+function tryMove(entity,dx,dy,r){
+  if(!blockedAt(entity.x+dx,entity.y,r))entity.x+=dx;
+  if(!blockedAt(entity.x,entity.y+dy,r))entity.y+=dy;
+}
+
+/* ---------- Játékállapot ---------- */
+let G=null; const keys=new Set();
+function newGame(skinIndex){
+  G={day:1,hour:6,dayElapsed:0,cash:0,loot:0,meter:0,skin:SKINS[skinIndex]||SKINS[1],scene:"world",house:null,room:null,
+     player:{x:SPAWN.x,y:SPAWN.y,dir:0},mini:null,infoOpen:false,toast:"",toastT:0,over:false,paused:true,showMap:false,tutorialStep:1,tutorialTimer:0,
+     cop:{x:0,y:0,active:false,angle:0},lastTheft:{...SPAWN},stolen:{},lockedOut:{}};
+}
+function say(msg,seconds=2.5){G.toast=msg;G.toastT=seconds}
+function addHeat(amount){if(amount>0){G.meter=Math.min(100,G.meter+amount);if(amount>=20)say("Nő a rendőri figyelem!")}}
+function credit(amount){G.cash+=amount;G.loot+=amount}
+function saveGame(){
+  if(!G)return;
+  const at=G.scene==="house"?G.house.door:G.player;
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({day:G.day,hour:G.hour,dayElapsed:G.dayElapsed,cash:G.cash,loot:G.loot,meter:G.meter,skin:SKINS.indexOf(G.skin),x:at.x,y:at.y}));setMenuMsg("Játék elmentve.")}
+  catch(e){setMenuMsg("A mentés nem sikerült (a böngésző tiltja a tárolást).")}
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY); if(!raw){setMenuMsg("Nincs mentett játék.");return false}
+    const d=JSON.parse(raw), num=(v,lo,hi,fallback)=>Number.isFinite(v)?Math.min(hi,Math.max(lo,v)):fallback;
+    newGame(num(d.skin,0,3,1));G.tutorialStep=4;
+    Object.assign(G,{day:num(d.day,1,MAX_DAYS,1),hour:num(d.hour,0,23.9,6),dayElapsed:num(d.dayElapsed,0,179.99,0),cash:num(d.cash,0,1e9,0),loot:num(d.loot,0,1e9,0),meter:num(d.meter,0,100,0)});
+    G.player.x=num(d.x,20,WORLD.w-20,SPAWN.x); G.player.y=num(d.y,20,WORLD.h-20,SPAWN.y);
+    if(blockedAt(G.player.x,G.player.y,8)){G.player.x=SPAWN.x;G.player.y=SPAWN.y}
+    return true;
+  }catch(e){setMenuMsg("A mentés sérült, nem tölthető be.");return false}
+}
+
+/* ---------- Akciók ---------- */
+function nearestNpc(){
+  let best=null,bestDist=85;
+  for(const n of world.npcs){const d=Math.hypot(n.x-G.player.x,n.y-G.player.y);if(d<bestDist){best=n;bestDist=d}}
+  return best;
+}
+function nearestHouseDoor(){return world.houses.find(h=>Math.hypot(h.door.x-G.player.x,h.door.y-G.player.y)<45)||null}
+function roomItemNear(){return G.room.items.find(i=>!G.stolen[i.key]&&Math.hypot(i.x-G.player.x,i.y-G.player.y)<45)||null}
+function makeSequence(length){
+  const dirs=["arrowup","arrowright","arrowdown","arrowleft"],out=[];
+  for(let i=0;i<length;i++){let next=dirs[Math.floor(Math.random()*dirs.length)];if(i>0&&next===out[i-1])next=dirs[(dirs.indexOf(next)+1+Math.floor(Math.random()*3))%4];out.push(next)}
+  return out;
+}
+function startSteal(source){
+  const level=Math.min(G.day,12), zone=Math.max(.045,.17-.009*level);
+  if(source.kind==="npc"&&isFacing(source.npc,G.player))zone*=.62;
+  if(source.kind==="item"&&G.room.resident&&Math.hypot(G.room.resident.x-G.player.x,G.room.resident.y-G.player.y)<220)zone*=.62;
+  if(G.tutorialStep===2)zone=Math.min(.28,zone*1.45);
+  const sequence=makeSequence(Math.min(7,3+Math.floor((level-1)/2)));
+  G.mini={type:"steal",source,phase:"sequence",sequence,seqIndex:0,mistakes:0,pos:0,dir:1,speed:.95+.13*level,zoneWidth:zone,zoneStart:rand(.05,.95-zone)};
+}
+function startPick(house){
+  if(G.lockedOut[house.id]===G.day){say("A zár beragadt, ma éjjel nem nyílik.");return}
+  const level=Math.min(G.day,12);
+  G.mini={type:"pick",house,pin:0,pins:Math.min(7,4+Math.floor((level-1)/3)),breaks:0,phase:"sequence",sequence:makeSequence(Math.min(7,3+Math.floor((level-1)/2))),seqIndex:0,mistakes:0,pos:0,dir:1,level};
+  nextPin();
+}
+function nextPin(){
+  const m=G.mini,width=Math.max(.035,.105-.008*m.level);
+  m.zoneWidth=width; m.zoneStart=rand(.05,.95-width); m.speed=1.15+.13*m.pin+.08*m.level;
+}
+function handleMiniInput(key){
+  if(!G||!G.mini)return;
+  const m=G.mini;
+  if(m.phase==="sequence"){
+    if(key===m.sequence[m.seqIndex]){
+      m.seqIndex++;
+      if(m.seqIndex>=m.sequence.length){m.phase="timing";m.pos=0;say("Jó sorrend! Most az AKCIÓ gombbal állítsd meg a jelölőt a zöld sávban.",3)}
+    }else{
+      m.mistakes++;m.seqIndex=0;
+      if(m.mistakes>=3){resolveMini(false)}else say(`Rossz irány! Újra (${m.mistakes}/3 hiba).`)
+    }
+  }else if(m.phase==="timing"&&(key===" "||key==="enter"||key==="action"||key==="e")){
+    resolveMini(inZone(m.pos,m.zoneStart,m.zoneWidth));
+  }
+  if(G.infoOpen&&G.mini)renderActionMini();
+}
+function interact(){
+  if(G.mini||G.over)return;
+  if(G.scene==="world"){
+    const npc=nearestNpc(), door=nearestHouseDoor();
+    if(npc){
+      if(npc.cash<=0){openActionOverlay("emptyNpc",npc);return}
+      startSteal({kind:"npc",npc});openActionOverlay("npc",npc);return;
+    }
+    if(door){enterHouse(door);openActionOverlay("house",door);return}
+  }else{
+    const item=roomItemNear();
+    if(item){startSteal({kind:"item",item});openActionOverlay("item",item);return}
+    if(Math.hypot(G.player.x-ROOM.w/2,G.player.y-(ROOM.h-10))<50){leaveHouse();return}
+  }
+}
+function enterHouse(house){
+  const rng=mulberry32(house.id*97+G.day), items=[];
+  for(let i=0;i<3;i++){const t=ITEM_TYPES[Math.floor(rng()*ITEM_TYPES.length)];items.push({...t,x:70+rng()*500,y:80+rng()*180,key:`${G.day}:${house.id}:${i}`})}
+  if(G.tutorialStep===1){items[0]={...ITEM_TYPES[0],x:300,y:140,key:`${G.day}:${house.id}:0`}}
+  G.room={items,resident:isNight(G.hour)?null:{x:rand(80,560),y:rand(80,260),tx:300,ty:200,dir:0,alert:0}};
+  G.scene="house";G.house=house;G.player.x=ROOM.w/2;G.player.y=ROOM.h-40;
+}
+function leaveHouse(){G.player.x=G.house.door.x;G.player.y=G.house.door.y+14;G.scene="world";G.house=null;G.room=null}
+function takeItem(item,instant){
+  G.stolen[item.key]=true; credit(item.v); say(`Elloptál: $${item.v} · ${item.n} (mai zsákmány: $${G.loot})`,3.5);
+  if(!instant)G.mini=null;
+}
+function resolveMini(hit){
+  const m=G.mini;
+  if(m.type==="pick"){
+    if(hit){m.pin++;if(m.pin>=m.pins){G.mini=null;enterHouse(m.house);say("Kinyílt a zár. Csendben, éjjel nincs otthon senki ébren.")}else nextPin()}
+    else{m.breaks++;m.pin=0;if(m.breaks>=3){G.lockedOut[m.house.id]=G.day;G.mini=null;addHeat(10);say("Eltört a dietrich. Ma éjjel itt nincs több esély.")}else{say(`Elcsúszott! Újrakezded (${m.breaks}/3 hiba).`);nextPin()}}
+    return;
+  }
+  G.mini=null;
+  setInfoGui(false);
+  const src=m.source;
+  if(src.kind==="npc"){
+    if(!hit){src.npc.alert=6;addHeat(15);say("Észrevett! Ordít.");return}
+    const gain=src.npc.cash; src.npc.cash=0; credit(gain); say(`Elloptál: $${gain} (mai zsákmány: $${G.loot})`,3.5);
+    if(G.tutorialStep===2){G.tutorialStep=3;G.tutorialTimer=9;say("3/3 – Sikerült! Kerüld a tanúkat és a rendőrt.",4)}
+    const witnesses=countWitnesses(world.npcs,G.player,src.npc);
+    addHeat(policeDelta(witnesses,gain));
+    if(world.dogs.some(d=>Math.hypot(d.x-G.player.x,d.y-G.player.y)<100)){addHeat(5);say(`+$${gain}, de a kutya ugat. Tanúk: ${witnesses}`)}
+    else say(`+$${gain}. Tanúk: ${witnesses}`);
+    G.lastTheft={x:G.player.x,y:G.player.y};
+  }else{
+    if(hit)takeItem(src.item,false);
+    else{addHeat(20);if(G.room.resident)G.room.resident.alert=6;say("Zajt csaptál! A lakó rád nézett.");G.lastTheft={x:G.house.door.x,y:G.house.door.y}}
+  }
+}
+function bust(){
+  const loss=Math.floor(G.loot*.5); G.loot-=loss; G.cash=Math.max(0,G.cash-loss);
+  G.meter=20; G.cop.active=false; G.player.x=SPAWN.x; G.player.y=SPAWN.y;
+  say(`Elkaptak! Elvesztettél $${loss}-t.`,4);
+}
+function endDay(){
+  if(G.loot<quotaForDay(G.day)){G.over=true;openMenu(`Vége. A napi kvóta ($${quotaForDay(G.day)}) nem t
